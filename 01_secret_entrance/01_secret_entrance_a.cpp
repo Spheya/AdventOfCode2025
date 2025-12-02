@@ -4,7 +4,7 @@
 #include <stringutils.hpp>
 
 int main() {
-	std::string file = loadFileToString("./01_secret_entrance_a.txt");
+	std::string file = loadFileToString("./01_secret_entrance.txt");
 	int dial = 50;
 	int result = 0;
 
