@@ -7,7 +7,7 @@ int main() {
 	std::string input = loadFileToString("./03_lobby.txt");
 	uint64_t result = 0;
 
-	for (SubStringIterator it(input, "\r\n"); it; ++it) {
+	for (StringTokenizer it(input, "\r\n"); it; ++it) {
 		uint64_t multiplier = 100000000000;
 
 		auto start = it->begin();

@@ -8,7 +8,7 @@ int main() {
 	int dial = 50;
 	int result = 0;
 
-	for (SubStringIterator it(file, "\n"); it; ++it) {
+	for (StringTokenizer it(file, "\n"); it; ++it) {
 		dial = ((dial + std::stoi(std::string(it->substr(1))) * ((*it)[0] == 'L' ? -1 : +1)) + 100) % 100;
 		if (dial == 0)
 			++result;

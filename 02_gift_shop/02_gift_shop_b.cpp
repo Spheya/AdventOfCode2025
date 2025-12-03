@@ -30,8 +30,8 @@ int main() {
 	std::string input = loadFileToString("./02_gift_shop.txt");
 	uint64_t result = 0;
 
-	for (SubStringIterator segment(input, ","); segment; ++segment) {
-		SubStringIterator it(*segment, "-");
+	for (StringTokenizer segment(input, ","); segment; ++segment) {
+		StringTokenizer it(*segment, "-");
 		uint64_t begin = std::stoull(std::string(*it));
 		uint64_t end = std::stoull(std::string(*(++it)));
 		for (uint64_t i = begin; i <= end; ++i)
