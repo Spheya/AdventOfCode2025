@@ -8,3 +8,4 @@ target_include_directories("shared" INTERFACE "./shared")
 
 add_subdirectory("./01_secret_entrance")
 add_subdirectory("./02_gift_shop")
+add_subdirectory("./03_lobby")
