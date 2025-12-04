@@ -1,10 +1,11 @@
-#include <iostream>
+﻿#include <iostream>
 #include <thread>
 #include <chrono>
 
 #include <stringutils.hpp>
 #include <fileutils.hpp>
 
+#define UNICODE
 #include <Windows.h>
 
 uint64_t pass(std::vector<std::string>& map, bool& collectedSomething) {
@@ -58,13 +59,14 @@ int main() {
 		result += pass(input, collectedSomething);
 
 		SetConsoleCursorPosition(output, {});
-
 		for (int y = 0; y < input.size(); ++y) {
-			for (int x = 0; x < input[y].size(); ++x) {
-				std::cout << input[y][x];
-			}
-			std::cout << std::endl;
+			DWORD written;
+			std::wstring line(input[y].begin(), input[y].end());
+			for (wchar_t& c : line) { c = c == L'.' ? L' ' : L'█'; }
+			line += L"\r\n";
+			WriteConsole(output, line.c_str(), line.length(), &written, 0);
 		}
+		std::this_thread::sleep_for(60ms);
 
 	} while (collectedSomething);
 
