@@ -77,4 +77,10 @@ private:
 	string_view_type m_view;
 };
 
+constexpr std::string_view trimStr(std::string_view str, const char* characters = " \t\r\n") {
+	size_t start = str.find_first_not_of(characters);
+	if(start == std::string_view::npos) return std::string_view();
+	return std::string_view(str.data() + start, str.find_last_not_of(characters) - start + 1);
+}
+
 using StringTokenizer = BasicStringTokenizer<std::string>;
