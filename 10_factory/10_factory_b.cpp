@@ -7,6 +7,7 @@
 #include <fileutils.hpp>
 
 struct Machine {
+	uint64_t permCount;
 	unsigned totalJoltage;
 	std::vector<unsigned> buttons;
 	std::vector<unsigned> requiredJoltage;
@@ -30,25 +31,21 @@ bool isValidCombination(const Machine& machine, const std::vector<unsigned>& buf
 	return joltage == machine.requiredJoltage;
 }
 
-unsigned findCombination(const Machine& machine, std::vector<unsigned>& buffer, int totalJoltage) {
-	for (int i = 0; i < machine.buttons.size(); ++i) {
-		if(buffer[i] >= machine.maxPresses[i] - 1) continue;
+unsigned findCombination(const Machine& machine) {
+	std::vector<unsigned> buttons;
+	buttons.resize(machine.maxPresses.size());
 
-		int popcount = std::popcount(machine.buttons[i]);
-		totalJoltage += popcount;
-		++buffer[i];
-		if (totalJoltage < machine.totalJoltage) {
-			findCombination(machine, buffer, totalJoltage);
-		}else if(totalJoltage == machine.totalJoltage) {
-			if(isValidCombination(machine, buffer)) {
-				unsigned total = 0;
-				for(auto u : buffer) total += u;
-				std::cout << "valid combination found: " << total << std::endl;
-				return total;
-			}
+	for (uint64_t i = 0; i < machine.permCount; ++i) {
+		uint64_t tmp = i;
+		for (int j = 0; j < buttons.size(); ++j) {
+			buttons[j] = tmp % machine.maxPresses[j];
+			tmp /= machine.maxPresses[j];
 		}
-		--buffer[i];
-		totalJoltage -= popcount;
+
+		if(isValidCombination(machine, buttons)) {
+			std::cout << "found valid combination!!!" << std::endl;
+			return i;
+		}
 	}
 
 	return 0;
@@ -73,7 +70,6 @@ int main() {
 			}
 		}
 
-		machine.totalJoltage = std::accumulate(machine.requiredJoltage.begin(), machine.requiredJoltage.end(), 0);
 
 		for (int i = 0; i < machine.buttons.size(); ++i) {
 			unsigned maxPresses = UINT_MAX;
@@ -86,14 +82,17 @@ int main() {
 			machine.maxPresses.push_back(maxPresses);
 		}
 
+		machine.totalJoltage = std::accumulate(machine.requiredJoltage.begin(), machine.requiredJoltage.end(), 0);
+		machine.permCount = 1;
+		for(auto btn : machine.maxPresses)
+			machine.permCount *= btn;
+
 		machines.push_back(machine);
 	}
 
 	unsigned result = 0;
 	for (auto& machine : machines) {
-		std::vector<unsigned> buffer;
-		buffer.resize(machine.buttons.size());
-		result += findCombination(machine, buffer, 0);
+		result += findCombination(machine);
 	}
 
 	std::cout << result << std::endl;
