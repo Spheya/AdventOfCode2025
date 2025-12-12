@@ -1,4 +1,4 @@
-#include <iostream>
+﻿#include <iostream>
 #include <bit>
 #include <algorithm>
 #include <numeric>
@@ -11,83 +11,57 @@
 struct Machine {
 	std::vector<unsigned> buttons;
 	std::vector<unsigned> requiredJoltage;
-	unsigned sizeMult;
+	unsigned scale;
 };
 
-struct State {
-	int heuristic;
-	int cost;
-	int buttonIdx;
-	std::vector<unsigned> joltage;
+std::vector<unsigned> getButtonsForParity(const Machine& machine, const std::vector<unsigned>& requiredJoltage) {
+	unsigned max = 1u << machine.buttons.size();
+	std::vector<unsigned> combinations;
 
-	bool operator>(const State& other) const noexcept { return heuristic + cost > other.heuristic + other.cost; }
-};
+	unsigned indicators = 0;
+	for (int i = 0; i < requiredJoltage.size(); ++i)
+		indicators |= (requiredJoltage[i] & 1) << i;
 
-// yoinked from https://stackoverflow.com/questions/20511347/a-good-hash-function-for-a-vector
-class uint_vector_hasher {
-public:
-	std::size_t operator()(const std::vector<unsigned>& vec) const {
-		std::size_t seed = vec.size();
-		for (unsigned i : vec)
-			seed ^= size_t(i) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-		return seed;
+	for (unsigned i = 0; i < max; ++i) {
+		unsigned value = indicators;
+		for (unsigned tmp = i; tmp; tmp &= tmp - 1)
+			value ^= machine.buttons[std::countr_zero(tmp)];
+
+		if (!value)
+			combinations.push_back(i);
 	}
-};
 
-unsigned findCombination(const Machine& machine) {
-	std::priority_queue<State, std::vector<State>, std::greater<State>> queue;
-	queue.emplace(0, 0, 0, std::vector<unsigned>(machine.requiredJoltage.size()));
-	std::unordered_set<std::vector<unsigned>, uint_vector_hasher> visited;
+	return combinations;
+}
 
-	float avgCoverage = 0;
-	std::vector<std::vector<bool>> possibleAxes;
-	for (int i = 0; i < machine.buttons.size(); ++i) {
-		possibleAxes.emplace_back(std::vector<bool>(machine.requiredJoltage.size()));
-		for (unsigned j = machine.buttons[i]; j; j &= j - 1)
-			for (auto& arr : possibleAxes)
-				arr[std::countr_zero(j)] = true;
+unsigned findCombination(const Machine& machine, std::vector<unsigned> requiredJoltage) {
+	if (std::accumulate(requiredJoltage.begin(), requiredJoltage.end(), 0) == 0) return 0;
 
-		avgCoverage += std::popcount(machine.buttons[i]);
-	}
-	avgCoverage /= float(machine.buttons.size());
+	auto combinations = getButtonsForParity(machine, requiredJoltage);
+	unsigned solution = UINT_MAX;
 
-	while (!queue.empty()) {
-		State state = queue.top();
-		queue.pop();
+	for (unsigned combi : combinations) {
+		std::vector<unsigned> reqJolt = requiredJoltage;
 
-		for (int i = state.buttonIdx; i < machine.buttons.size(); ++i) {
-			unsigned btn = machine.buttons[i];
-			std::vector<unsigned> joltage = state.joltage;
-			for (unsigned j = machine.buttons[i]; j; j &= j - 1)
-				++joltage[std::countr_zero(j)];
+		for (unsigned btn = combi; btn; btn &= btn - 1)
+			for (unsigned jlt = machine.buttons[std::countr_zero(btn)]; jlt; jlt &= jlt - 1)
+				--reqJolt[std::countr_zero(jlt)];
 
-			if (visited.contains(joltage)) continue;
+		bool prune = false;
+		for (int i = 0; i < reqJolt.size(); ++i)
+			if (reqJolt[i] > requiredJoltage[i]) prune = true;
 
-			bool prune = false;
-			bool equalsTarget = true;
-			int heuristic = 0;
+		for (int i = 0; i < reqJolt.size(); ++i)
+			reqJolt[i] >>= 1;
 
-			for (int j = 0; j < machine.requiredJoltage.size(); ++j) {
-				int value = machine.requiredJoltage[j] - joltage[j];
-				if (possibleAxes[i][j]) {
-					heuristic += std::max(value, heuristic) / avgCoverage;
-				} else {
-					if (value != 0) { prune = true; break; }
-				}
-
-				if (value < 0) { prune = true; break; }
-				if (value != 0) equalsTarget = false;
-			}
-
-			if (prune) continue;
-			if (equalsTarget) return (state.cost + 1) * machine.sizeMult;
-
-			visited.emplace(joltage);
-			queue.emplace(heuristic, state.cost + 1, i, std::move(joltage));
+		if (!prune) {
+			unsigned partialSolution = findCombination(machine, reqJolt);
+			if (partialSolution != UINT_MAX)
+				solution = std::min((partialSolution << 1) + std::popcount(combi), solution);
 		}
 	}
 
-	return 0;
+	return solution;
 }
 
 int main() {
@@ -109,24 +83,22 @@ int main() {
 			}
 		}
 
-		unsigned gcd = std::accumulate(machine.requiredJoltage.begin() + 1, machine.requiredJoltage.end(), machine.requiredJoltage.front(),
-			[](int a, int b) {
-				return std::gcd(a, b);
-			}
+		machine.scale = std::accumulate(machine.requiredJoltage.begin() + 1, machine.requiredJoltage.end(), machine.requiredJoltage.front(),
+			[](int a, int b) { return std::gcd(a, b); }
 		);
-		machine.sizeMult = gcd;
 
-		for (auto& joltage : machine.requiredJoltage) joltage /= gcd;
+		for (auto& joltage : machine.requiredJoltage) joltage /= machine.scale;
 
 		std::sort(machine.buttons.begin(), machine.buttons.end(), [](unsigned a, unsigned b) { return std::popcount(b) < std::popcount(a); });
 		machines.push_back(machine);
 	}
 
 	unsigned result = 0;
+	int i = 0;
 	for (auto& machine : machines) {
-		unsigned r = findCombination(machine);
+		unsigned r = findCombination(machine, machine.requiredJoltage) * machine.scale;
 		result += r;
-		std::cout << r << std::endl;
+		std::cout << "shortest path: " << r << std::endl;
 	}
 
 	std::cout << result << std::endl;
